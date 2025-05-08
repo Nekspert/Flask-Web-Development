@@ -1,28 +1,58 @@
-# Flask-Web-Development
-This repository is divided into three parts.
-Part I, Introduction to Flask, explores the basics of web application development with the Flask
-framework and some of its extensions:
-Chapter 1 describes the installation and setup of the Flask framework.
-Chapter 2 dives straight into Flask with a basic application.
-Chapter 3 introduces the use of templates in Flask applications.
-Chapter 4 introduces web forms.
-Chapter 5 introduces databases.
-Chapter 6 introduces email support.
-Chapter 7 presents an application structure that is appropriate for medium and large
-applications.
-Part II, Example: A Social Blogging Application, builds Flasky, the open source blogging and social
-networking application that I developed for this book:
-Chapter 8 implements a user authentication system.
-Chapter 9 implements user roles and permissions.
-Chapter 10 implements user profile pages.
-Chapter 11 creates the blogging interface.
-Chapter 12 implements followers.
-Chapter 13 implements user comments for blog posts.
-Chapter 14 implements an application programming interface (API).
-Part III, The Last Mile, describes some important tasks not directly related to application coding that
-need to be considered before publishing an application:
-Chapter 15 describes different unit testing strategies in detail.
-Chapter 16 gives an overview of performance analysis techniques.
-Chapter 17 describes deployment options for Flask applications, including traditional, cloudbased,
-and container-based solutions.
-Chapter 18 lists additional resources.
+# Flask Web Development 🐍🚀
+
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-2.0%2B-red)](https://flask.palletsprojects.com/)
+
+A comprehensive guide to building modern web applications with Flask, following the structure *Flask Web Development*.
+
+## 📚 Table of Contents
+
+### Part I: Introduction to Flask
+- **Chapter 1**: Installation and Setup
+- **Chapter 2**: Basic Flask Application
+- **Chapter 3**: Templates
+- **Chapter 4**: Web Forms
+- **Chapter 5**: Databases
+- **Chapter 6**: Email Support
+- **Chapter 7**: Application Structure
+
+### Part II: Example: A Social Blogging Application (Flasky) 🚀
+- **Chapter 8**: User Authentication
+- **Chapter 9**: Roles & Permissions
+- **Chapter 10**: Profile Pages
+- **Chapter 11**: Blogging Interface
+- **Chapter 12**: Followers System
+- **Chapter 13**: Post Comments
+- **Chapter 14**: RESTful API
+
+### Part III: The Last Mile ✅
+- **Chapter 15**: Unit Testing
+- **Chapter 16**: Performance Analysis
+- **Chapter 17**: Deployment Strategies
+- **Chapter 18**: Additional Resources
+
+## ✨ Features
+- Step-by-step implementation guide
+- Modern Flask (2.x) and Python (3.12+) practices
+- Complete social blogging application example
+- Production-ready deployment techniques
+- Testing and performance optimization strategies
+
+## 🛠 Getting Started
+
+### Prerequisites
+- Python 3.12+
+- poetry package manager
+- Virtual environment (recommended)
+
+### Installation
+```bash
+# Clone repository
+git clone https://github.com/Nekspert/Flask-Web-Development.git
+
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+poetry install
