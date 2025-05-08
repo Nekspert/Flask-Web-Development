@@ -1,6 +1,6 @@
 # Flask Web Development 🐍🚀
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-blue)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-2.0%2B-red)](https://flask.palletsprojects.com/)
 
 A comprehensive guide to building modern web applications with Flask, following the structure *Flask Web Development*.
