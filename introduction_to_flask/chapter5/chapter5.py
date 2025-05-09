@@ -8,7 +8,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 
-basedir = os.path.abspath(os.path.dirname(__file__))  # Use __file__ instead of __name__
+basedir = os.path.abspath(os.path.dirname(__file__)) 
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
