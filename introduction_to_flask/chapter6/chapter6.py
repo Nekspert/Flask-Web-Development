@@ -86,13 +86,11 @@ def index():
     if form.validate_on_submit():
         user = User().query.filter_by(username=form.name.data).first()
         if user is None:
-            print(1)
             user = User(username=form.name.data)
             db.session.add(user)
             db.session.commit()
             session['known'] = False
             if app.config['FLASKY_ADMIN']:
-                print(2)
                 send_email(app.config['FLASKY_ADMIN'], ' New User', 'mail/new_user', user=user)
         else:
             session['known'] = True
