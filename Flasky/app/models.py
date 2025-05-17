@@ -1,13 +1,22 @@
+from enum import Enum
 from typing import Optional
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from flask import current_app
-from flask_login import UserMixin
+from flask_login import UserMixin, AnonymousUserMixin
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from . import db, login_manager
+
+
+class Permissions(Enum):
+    FOLLOW = 1
+    COMMENT = 2
+    WRITE = 4
+    MODERATE = 8
+    ADMIN = 16
 
 
 @login_manager.user_loader
@@ -19,8 +28,50 @@ class Role(db.Model):
     __tablename__ = 'roles'
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True)
+    default: so.Mapped[bool] = so.mapped_column(default=False, index=True)
+    permissions: so.Mapped[int] = so.mapped_column()
 
     users: so.DynamicMapped[Optional['User']] = so.relationship('User', back_populates='role', lazy='dynamic')
+
+    def __init__(self, **kwargs):
+        super(Role, self).__init__(**kwargs)
+        if self.permissions is None:
+            self.permissions = 0
+
+    def add_permission(self, perm: int):
+        if not self.has_permission(perm):
+            self.permissions += perm
+
+    def remove_permission(self, perm: int):
+        if self.has_permission(perm):
+            self.permissions -= perm
+
+    def reset_permissions(self):
+        self.permissions = 0
+
+    def has_permission(self, perm: int):
+        return self.permissions & perm == perm
+
+    @staticmethod
+    def insert_roles():
+        roles = {
+            'User': [Permissions.FOLLOW.value, Permissions.WRITE.value, Permissions.COMMENT.value],
+            'Moderator': [Permissions.FOLLOW.value, Permissions.WRITE.value, Permissions.COMMENT.value,
+                          Permissions.MODERATE.value],
+            'Administrator': [Permissions.FOLLOW.value, Permissions.WRITE.value, Permissions.COMMENT.value,
+                              Permissions.MODERATE.value, Permissions.ADMIN.value]
+        }
+        default_role = 'User'
+        for r in roles:
+            role = Role.query.filter_by(name=r).first()
+            if role is None:
+                role = Role(name=r)
+            role.reset_permissions()
+            for perm in roles[r]:
+                role.add_permission(perm)
+            role.default = role.name == default_role
+            db.session.add(role)
+        db.session.commit()
 
     def __repr__(self):
         return f'<Role "{self.name}">'
@@ -36,6 +87,17 @@ class User(UserMixin, db.Model):
 
     role_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('roles.id'))
     role: so.Mapped[Optional[Role]] = so.relationship(Role, back_populates='users')
+
+    def __init__(self, **kwargs):
+        super(User, self).__init__(**kwargs)
+        self.__set_role()
+
+    def __set_role(self):
+        if self.role is None:
+            if self.email == current_app.config['FLASKY_ADMIN']:
+                self.role = Role.query.filter_by(name='Administrator').first()
+            if self.role is None:
+                self.role = Role.query.filter_by(default=True).first()
 
     @property
     def password(self):
@@ -117,8 +179,26 @@ class User(UserMixin, db.Model):
         if self.query.filter_by(email=new_email).first() is not None:
             return False
         self.email = new_email
+        self.__set_role()
         db.session.add(self)
         return True
 
+    def can(self, perm: int) -> bool:
+        return self.role is not None and self.role.has_permission(perm)
+
+    def is_administrator(self) -> bool:
+        return self.can(Permissions.ADMIN.value)
+
     def __repr__(self):
         return f'<User "{self.username}">'
+
+
+class AnonymousUser(AnonymousUserMixin):
+    def can(self, permissions) -> bool:
+        return False
+
+    def is_administrator(self) -> bool:
+        return False
+
+
+login_manager.anonymous_user = AnonymousUser

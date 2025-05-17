@@ -2,7 +2,7 @@ import time
 import unittest
 
 from app import db, create_app
-from app.models import User
+from app.models import User, Permissions, AnonymousUser, Role
 
 
 class UserModelTestCase(unittest.TestCase):
@@ -11,6 +11,7 @@ class UserModelTestCase(unittest.TestCase):
         self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
+        Role.insert_roles()
 
     def tearDown(self):
         db.session.remove()
@@ -96,3 +97,30 @@ class UserModelTestCase(unittest.TestCase):
         token = u2.generate_email_change_token('john@example.com')
         self.assertFalse(u2.change_email(token))
         self.assertTrue(u2.email == 'susan@example.org')
+
+    def test_user_role(self):
+        u = User(email='sad', username='asd', password='12')
+
+        self.assertTrue(u.can(Permissions.FOLLOW.value))
+        self.assertTrue(u.can(Permissions.WRITE.value))
+        self.assertTrue(u.can(Permissions.COMMENT.value))
+        self.assertFalse(u.can(Permissions.MODERATE.value))
+        self.assertFalse(u.can(Permissions.ADMIN.value))
+
+    def test_administrator_role(self):
+        r = Role.query.filter_by(name='Administrator').first()
+        u = User(email='john@example.com', password='cat', role=r)
+        self.assertTrue(u.can(Permissions.FOLLOW.value))
+        self.assertTrue(u.can(Permissions.COMMENT.value))
+        self.assertTrue(u.can(Permissions.WRITE.value))
+        self.assertTrue(u.can(Permissions.MODERATE.value))
+        self.assertTrue(u.can(Permissions.ADMIN.value))
+
+    def test_anonymous_user(self):
+        u = AnonymousUser()
+
+        self.assertFalse(u.can(Permissions.FOLLOW))
+        self.assertFalse(u.can(Permissions.COMMENT))
+        self.assertFalse(u.can(Permissions.WRITE))
+        self.assertFalse(u.can(Permissions.MODERATE))
+        self.assertFalse(u.can(Permissions.ADMIN))

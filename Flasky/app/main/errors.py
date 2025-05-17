@@ -3,6 +3,11 @@ from flask import render_template
 from . import bp
 
 
+@bp.app_errorhandler(403)
+def forbidden(e):
+    return render_template('403.html')
+
+
 @bp.app_errorhandler(404)
 def page_bot_found(e):
     return render_template('404.html'), 404
