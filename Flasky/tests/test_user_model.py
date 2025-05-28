@@ -1,3 +1,4 @@
+import datetime
 import time
 import unittest
 
@@ -42,7 +43,9 @@ class UserModelTestCase(unittest.TestCase):
         self.assertFalse(u.confirmed)
 
     def test_confirm_verification_expired(self):
-        u = User()
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
+        db.session.add(u)
+        db.session.commit()
         self.assertFalse(u.confirmed)
         token = u.generate_confirmation_token()
         time.sleep(3)
@@ -107,6 +110,15 @@ class UserModelTestCase(unittest.TestCase):
         self.assertFalse(u.can(Permissions.MODERATE.value))
         self.assertFalse(u.can(Permissions.ADMIN.value))
 
+    def test_moderator_role(self):
+        r = Role.query.filter_by(name='Moderator').first()
+        u = User(email='john@example.com', password='cat', role=r)
+        self.assertTrue(u.can(Permissions.FOLLOW.value))
+        self.assertTrue(u.can(Permissions.COMMENT.value))
+        self.assertTrue(u.can(Permissions.WRITE.value))
+        self.assertTrue(u.can(Permissions.MODERATE.value))
+        self.assertFalse(u.can(Permissions.ADMIN.value))
+
     def test_administrator_role(self):
         r = Role.query.filter_by(name='Administrator').first()
         u = User(email='john@example.com', password='cat', role=r)
@@ -124,3 +136,21 @@ class UserModelTestCase(unittest.TestCase):
         self.assertFalse(u.can(Permissions.WRITE))
         self.assertFalse(u.can(Permissions.MODERATE))
         self.assertFalse(u.can(Permissions.ADMIN))
+
+    def test_timestamps(self):
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
+        db.session.add(u)
+        db.session.commit()
+        self.assertTrue(
+            (datetime.datetime.utcnow() - u.moment_since).total_seconds() < 3)
+        self.assertTrue(
+            (datetime.datetime.utcnow() - u.last_seen).total_seconds() < 3)
+
+    def test_ping(self):
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
+        db.session.add(u)
+        db.session.commit()
+        time.sleep(2)
+        last_seen_before = u.last_seen
+        u.ping()
+        self.assertTrue(u.last_seen > last_seen_before)

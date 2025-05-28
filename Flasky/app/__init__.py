@@ -1,9 +1,9 @@
 from flask import Flask
 from flask_bootstrap import Bootstrap
+from flask_login import LoginManager
 from flask_mail import Mail
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
 
 from config import config
 
@@ -32,5 +32,8 @@ def create_app(config_name) -> Flask:
 
     from .auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
+
+    from .profile import bp as profile_bp
+    app.register_blueprint(profile_bp)
 
     return app

@@ -1,11 +1,14 @@
+import hashlib
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from flask import current_app
+from flask import current_app, request
 from flask_login import UserMixin, AnonymousUserMixin
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from sqlalchemy import DateTime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from . import db, login_manager
@@ -85,12 +88,25 @@ class User(UserMixin, db.Model):
     password_hash: so.Mapped[str] = so.mapped_column(sa.String(128))
     confirmed: so.Mapped[bool] = so.mapped_column(default=False)
 
+    name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64))
+    location: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64))
+    about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.Text())
+    moment_since: so.Mapped[datetime] = so.mapped_column(DateTime(timezone=True),
+                                                         default=lambda: datetime.now(tz=timezone.utc))
+    last_seen: so.Mapped[datetime] = so.mapped_column(DateTime(timezone=True),
+                                                      default=lambda: datetime.now(tz=timezone.utc))
+
+    avatar_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32))
+
     role_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('roles.id'))
     role: so.Mapped[Optional[Role]] = so.relationship(Role, back_populates='users')
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
         self.__set_role()
+        if self.email is not None and self.avatar_hash is None:
+            self.avatar_hash = self.gravatar_hash()
+        db.session.commit()
 
     def __set_role(self):
         if self.role is None:
@@ -179,8 +195,10 @@ class User(UserMixin, db.Model):
         if self.query.filter_by(email=new_email).first() is not None:
             return False
         self.email = new_email
-        self.__set_role()
+        self.avatar_hash = self.gravatar_hash()
         db.session.add(self)
+        db.session.flush()
+        self.__set_role()
         return True
 
     def can(self, perm: int) -> bool:
@@ -188,6 +206,24 @@ class User(UserMixin, db.Model):
 
     def is_administrator(self) -> bool:
         return self.can(Permissions.ADMIN.value)
+
+    def ping(self):
+        self.last_seen = datetime.now(timezone.utc)
+        db.session.add(self)
+        db.session.commit()
+
+    def gravatar_hash(self):
+        return hashlib.md5(self.email.lower().encode()).hexdigest()
+
+    def gravatar(self, size=100, default='identicon', rating='g'):
+        if request.is_secure:
+            url = 'https://secure.gravatar.com/avatar'
+        else:
+            url = 'http://www.gravatar.com/avatar'
+
+        hash = self.avatar_hash or self.gravatar_hash()
+        return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
+            url=url, hash=hash, size=size, default=default, rating=rating)
 
     def __repr__(self):
         return f'<User "{self.username}">'
