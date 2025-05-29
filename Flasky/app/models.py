@@ -3,12 +3,14 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
+import bleach
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from flask import current_app, request
 from flask_login import UserMixin, AnonymousUserMixin
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from sqlalchemy import DateTime
+from markdown import markdown
+from sqlalchemy import DateTime, event
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from . import db, login_manager
@@ -100,6 +102,7 @@ class User(UserMixin, db.Model):
 
     role_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('roles.id'))
     role: so.Mapped[Optional[Role]] = so.relationship(Role, back_populates='users')
+    posts: so.DynamicMapped['Post'] = so.relationship('Post', backref='author', lazy='dynamic')
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -238,3 +241,25 @@ class AnonymousUser(AnonymousUserMixin):
 
 
 login_manager.anonymous_user = AnonymousUser
+
+
+class Post(db.Model):
+    __tablename__ = 'posts'
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    body: so.Mapped[str] = so.mapped_column(sa.Text)
+    html_body: so.Mapped[str] = so.mapped_column(sa.Text)
+    timestamp: so.Mapped[datetime] = so.mapped_column(DateTime(timezone=True),
+                                                      default=lambda: datetime.now(timezone.utc))
+    author_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('users.id'))
+
+    @staticmethod
+    def on_changed_body(target: 'Post', value: str, oldvalue, initiator):
+        allowed_tags = ['a', 'abbr', 'acronym', 'b', 'blockquote', 'code',
+                        'em', 'i', 'li', 'ol', 'pre', 'strong', 'ul',
+                        'h1', 'h2', 'h3', 'p']
+        target.html_body = bleach.linkify(bleach.clean(
+            markdown(value, output_format='html'),
+            tags=allowed_tags, strip=True))
+
+
+event.listen(Post.body, 'set', Post.on_changed_body)
