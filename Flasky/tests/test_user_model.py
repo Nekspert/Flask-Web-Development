@@ -3,7 +3,7 @@ import time
 import unittest
 
 from app import db, create_app
-from app.models import User, Permissions, AnonymousUser, Role
+from app.models import User, Permissions, AnonymousUser, Role, Follow
 
 
 class UserModelTestCase(unittest.TestCase):
@@ -154,3 +154,21 @@ class UserModelTestCase(unittest.TestCase):
         last_seen_before = u.last_seen
         u.ping()
         self.assertTrue(u.last_seen > last_seen_before)
+
+    def test_follows(self):
+        u1 = User(email='tim@1.gmail.com', username='pass1', password='cat')
+        u2 = User(email='tim@2.gmail.com', username='pass2', password='cat')
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.commit()
+        self.assertFalse(u1.is_following(u2))
+        self.assertFalse(u1.is_followed_by(u2))
+
+        timestamp_before = datetime.datetime.utcnow()
+        f = Follow(follower_id=u1.id, followed_id=u2.id)
+        db.session.add(f)
+        db.session.commit()
+        self.assertTrue(u1.is_following(u2))
+        self.assertTrue(u2.is_followed_by(u1))
+        timestamp_after = datetime.datetime.utcnow()
+        self.assertTrue(timestamp_before <= f.timestamp <= timestamp_after)

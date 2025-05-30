@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, request, current_app, flash, abort
+from flask import render_template, redirect, url_for, request, current_app, flash, abort, make_response, Response
 from flask_login import current_user, login_required
 
 from . import bp
@@ -18,12 +18,19 @@ def index():
         db.session.commit()
         return redirect(url_for('.index'))
     page = request.args.get('page', 1, type=int)
-    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+    show_followed = False
+    if current_user.is_authenticated:
+        show_followed = bool(request.cookies.get('show_followed', ''))
+    if show_followed:
+        query = current_user.followed_posts
+    else:
+        query = Post.query
+    pagination = query.order_by(Post.timestamp.desc()).paginate(
         page=page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
         error_out=False)
     posts = pagination.items
     return render_template('index.html', form=form, posts=posts,
-                           pagination=pagination)
+                           pagination=pagination, show_followed=show_followed)
 
 
 @bp.route('/post/<int:id>')
@@ -52,3 +59,19 @@ def edit(id):
             return redirect(url_for('.post', id=post.id))
     form.body.data = post.body
     return render_template('edit_post.html', form=form, next=next_page)
+
+
+@bp.route('/all')
+@login_required
+def show_all():
+    resp: Response = make_response(redirect(url_for('.index')))
+    resp.set_cookie('show_followed', max_age=60 * 60 * 24 * 30)
+    return resp
+
+
+@bp.route('/followed')
+@login_required
+def show_followed():
+    resp: Response = make_response(redirect(url_for('.index')))
+    resp.set_cookie('show_followed', '1', max_age=60 * 60 * 24 * 30)
+    return resp

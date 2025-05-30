@@ -104,11 +104,28 @@ class User(UserMixin, db.Model):
     role: so.Mapped[Optional[Role]] = so.relationship(Role, back_populates='users')
     posts: so.DynamicMapped['Post'] = so.relationship('Post', backref='author', lazy='dynamic')
 
+    followed: so.DynamicMapped['Follow'] = so.relationship('Follow', foreign_keys='Follow.follower_id',
+                                                           back_populates='follower', lazy='dynamic',
+                                                           cascade='all, delete-orphan')
+    followers: so.DynamicMapped['Follow'] = so.relationship('Follow', foreign_keys='Follow.followed_id',
+                                                            back_populates='followed', lazy='dynamic',
+                                                            cascade='all, delete-orphan')
+
+    # followed: so.DynamicMapped['Follow'] = so.relationship('Follow', foreign_keys='Follow.followed_id',
+    #                                                        backref=so.backref('follower', lazy='joined'),
+    #                                                        lazy='dynamic',
+    #                                                        cascade='all, delete-orphan')
+    # followers: so.DynamicMapped['Follow'] = so.relationship('Follow', foreign_keys='Follow.follower_id',
+    #                                                         backref=so.backref('followed', lazy='joined'),
+    #                                                         lazy='dynamic',
+    #                                                         cascade='all, delete-orphan')
+
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
         self.__set_role()
         if self.email is not None and self.avatar_hash is None:
             self.avatar_hash = self.gravatar_hash()
+        self.follow(self)
         db.session.commit()
 
     def __set_role(self):
@@ -228,6 +245,39 @@ class User(UserMixin, db.Model):
         return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
             url=url, hash=hash, size=size, default=default, rating=rating)
 
+    def follow(self, user):
+        if not self.is_following(user):
+            f = Follow(follower=self, followed=user)
+            db.session.add(f)
+
+    def unfollow(self, user):
+        f = self.followed.filter_by(followed_id=user.id).first()
+        if f:
+            db.session.delete(f)
+
+    def is_following(self, user):
+        if user.id is None:
+            return None
+        return self.followed.filter_by(followed_id=user.id).first() is not None
+
+    def is_followed_by(self, user):
+        if user.id is None:
+            return False
+        return self.followers.filter_by(
+            follower_id=user.id).first() is not None
+
+    @property
+    def followed_posts(self):
+        return Post.query.join(Follow, Follow.follower_id == self.id).filter(Follow.followed_id == Post.author_id)
+
+    @staticmethod
+    def add_self_follows():
+        for user in User.query.all():
+            if not user.is_following(user):
+                user.follow(user)
+                db.session.add(user)
+        db.session.commit()
+
     def __repr__(self):
         return f'<User "{self.username}">'
 
@@ -263,3 +313,14 @@ class Post(db.Model):
 
 
 event.listen(Post.body, 'set', Post.on_changed_body)
+
+
+class Follow(db.Model):
+    __tablename__ = 'follows'
+    follower_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), primary_key=True)
+    followed_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), primary_key=True)
+    timestamp: so.Mapped[datetime] = so.mapped_column(DateTime(timezone=True),
+                                                      default=lambda: datetime.now(tz=timezone.utc))
+
+    follower: so.Mapped[User] = so.relationship(User, foreign_keys=[follower_id], back_populates='followed')
+    followed: so.Mapped[User] = so.relationship(User, foreign_keys=[followed_id], back_populates='followers')

@@ -39,3 +39,17 @@ div.post-content {
     margin-left: 48px;
     min-height: 48px;
 }
+
+.table.followers tr {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+
+div.post-tabs {
+    margin-top: 16px;
+}
+
+div.post-tabs ul.posts {
+    margin: 0px;
+    border-top: none;
+}
