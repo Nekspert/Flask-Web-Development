@@ -111,14 +111,9 @@ class User(UserMixin, db.Model):
                                                             back_populates='followed', lazy='dynamic',
                                                             cascade='all, delete-orphan')
 
-    # followed: so.DynamicMapped['Follow'] = so.relationship('Follow', foreign_keys='Follow.followed_id',
-    #                                                        backref=so.backref('follower', lazy='joined'),
-    #                                                        lazy='dynamic',
-    #                                                        cascade='all, delete-orphan')
-    # followers: so.DynamicMapped['Follow'] = so.relationship('Follow', foreign_keys='Follow.follower_id',
-    #                                                         backref=so.backref('followed', lazy='joined'),
-    #                                                         lazy='dynamic',
-    #                                                         cascade='all, delete-orphan')
+    comments: so.DynamicMapped['Comment'] = so.relationship('Comment', foreign_keys='Comment.author_id',
+                                                            lazy='dynamic', back_populates='author',
+                                                            cascade='all, delete-orphan')
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -302,8 +297,12 @@ class Post(db.Model):
                                                       default=lambda: datetime.now(timezone.utc))
     author_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('users.id'))
 
+    comments: so.DynamicMapped['Comment'] = so.relationship('Comment', foreign_keys='Comment.post_id',
+                                                            back_populates='post',
+                                                            lazy='dynamic', cascade='all, delete-orphan')
+
     @staticmethod
-    def on_changed_body(target: 'Post', value: str, oldvalue, initiator):
+    def on_changed_body(target: 'Post', value: str, oldvalue: str, initiator):
         allowed_tags = ['a', 'abbr', 'acronym', 'b', 'blockquote', 'code',
                         'em', 'i', 'li', 'ol', 'pre', 'strong', 'ul',
                         'h1', 'h2', 'h3', 'p']
@@ -324,3 +323,29 @@ class Follow(db.Model):
 
     follower: so.Mapped[User] = so.relationship(User, foreign_keys=[follower_id], back_populates='followed')
     followed: so.Mapped[User] = so.relationship(User, foreign_keys=[followed_id], back_populates='followers')
+
+
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    body: so.Mapped[str] = so.mapped_column(sa.Text)
+    html_body: so.Mapped[str] = so.mapped_column(sa.Text)
+    timestamp: so.Mapped[datetime] = so.mapped_column(DateTime(timezone=True),
+                                                      default=lambda: datetime.now(timezone.utc))
+    disabled: so.Mapped[bool] = so.mapped_column(sa.Boolean)
+    author_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id))
+    post_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Post.id))
+
+    author: so.Mapped[User] = so.relationship(User, foreign_keys=author_id, back_populates='comments')
+    post: so.Mapped[Post] = so.relationship(Post, foreign_keys=post_id, back_populates='comments')
+
+    @staticmethod
+    def on_change_body(target: 'Comment', value: str, oldvalue: str, initiator):
+        allowed_tags = ['a', 'abbr', 'acronym', 'b', 'code', 'em', 'i', 'strong']
+        target.html_body = bleach.linkify(
+            bleach.clean(markdown(
+                value, output_format='html'
+            ), tags=allowed_tags, strip=True))
+
+
+event.listen(Comment.body, 'set', Comment.on_change_body)
