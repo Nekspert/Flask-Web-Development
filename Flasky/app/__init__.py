@@ -39,4 +39,7 @@ def create_app(config_name) -> Flask:
     from .profile import bp as profile_bp
     app.register_blueprint(profile_bp)
 
+    from .api import bp as api_bp
+    app.register_blueprint(api_bp, url_prefix='/api/v1')
+
     return app

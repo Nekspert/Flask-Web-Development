@@ -6,7 +6,7 @@ from typing import Optional
 import bleach
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from flask import current_app, request
+from flask import current_app, request, url_for
 from flask_login import UserMixin, AnonymousUserMixin
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from markdown import markdown
@@ -14,6 +14,7 @@ from sqlalchemy import DateTime, event
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from . import db, login_manager
+from .exceptions import ValidationError
 
 
 class Permissions(Enum):
@@ -273,12 +274,41 @@ class User(UserMixin, db.Model):
                 db.session.add(user)
         db.session.commit()
 
+    def generate_auth_token(self):
+        s = URLSafeTimedSerializer(secret_key=current_app.config['SECRET_KEY'])
+        return s.dumps({'id': self.id})
+
+    @staticmethod
+    def verify_auth_token(token: str | bytes, expiration: int = 3600):
+        s = URLSafeTimedSerializer(secret_key=current_app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token.encode(), max_age=expiration)
+        except (SignatureExpired, BadSignature):
+            return None
+        except Exception:
+            return None
+        return User.query.get(data['id'])
+
+    def to_json(self) -> dict:
+        json_user = {
+            'url': url_for('api.get_user', id=self.id),
+            'username': self.username,
+            'name': self.name,
+            'moment_since': self.moment_since,
+            'last_seen': self.last_seen,
+            'posts_url': url_for('api.get_user_posts', id=self.id),
+            'followed_posts_url': url_for('api.get_user_followed_posts',
+                                          id=self.id),
+            'post_count': self.posts.count(),
+        }
+        return json_user
+
     def __repr__(self):
         return f'<User "{self.username}">'
 
 
 class AnonymousUser(AnonymousUserMixin):
-    def can(self, permissions) -> bool:
+    def can(self, permissions: int) -> bool:
         return False
 
     def is_administrator(self) -> bool:
@@ -310,6 +340,28 @@ class Post(db.Model):
             markdown(value, output_format='html'),
             tags=allowed_tags, strip=True))
 
+    @staticmethod
+    def from_json(json_post: dict) -> 'Post':
+        body = json_post.get('body')
+        if body is None or body == '':
+            raise ValidationError('post does not have a body')
+        return Post(body=body)
+
+    def to_json(self) -> dict:
+        json_post = {
+            'url': url_for('api.get_post', id=self.id),
+            'body': self.body,
+            'html_body': self.html_body,
+            'timestamp': self.timestamp,
+            'author_url': url_for('api.get_user', id=self.author_id),
+            'comments_url': url_for('api.get_comments', id=self.id),
+            'comments_count': self.comments.count()
+        }
+        return json_post
+
+    def __repr__(self):
+        return f'<Post "{self.id}">'
+
 
 event.listen(Post.body, 'set', Post.on_changed_body)
 
@@ -323,6 +375,9 @@ class Follow(db.Model):
 
     follower: so.Mapped[User] = so.relationship(User, foreign_keys=[follower_id], back_populates='followed')
     followed: so.Mapped[User] = so.relationship(User, foreign_keys=[followed_id], back_populates='followers')
+
+    def __repr__(self):
+        return f'<Follow "follower={self.follower_id} | followed={self.followed_id}">'
 
 
 class Comment(db.Model):
@@ -346,6 +401,27 @@ class Comment(db.Model):
             bleach.clean(markdown(
                 value, output_format='html'
             ), tags=allowed_tags, strip=True))
+
+    def to_json(self) -> dict:
+        json_comment = {
+            'url': url_for('api.get_comment', id=self.id),
+            'post_url': url_for('api.get_post', id=self.post_id),
+            'author_url': url_for('api.get_user', id=self.author_id),
+            'body': self.body,
+            'html_body': self.html_body,
+            'timestamp': self.timestamp
+        }
+        return json_comment
+
+    @staticmethod
+    def from_json(json_comment: dict) -> 'Comment':
+        body = json_comment.get('body')
+        if body is None or body == '':
+            raise ValidationError('comment does not have a body')
+        return Comment(body=body)
+
+    def __repr__(self):
+        return f'<Comment "{self.id}">'
 
 
 event.listen(Comment.body, 'set', Comment.on_change_body)
