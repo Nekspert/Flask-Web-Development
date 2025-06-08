@@ -33,7 +33,7 @@ def get_comment(id):
 
 @bp.route('/posts/<int:id>/comments/')
 def get_post_comments(id):
-    post = Post.query.get_or_404()
+    post = Post.query.get_or_404(id)
     page = request.args.get('page', 1, type=int)
     pagination = Comment.query.filter_by(post_id=post.id).order_by(Comment.timestamp.desc()).paginate(
         page=page,
