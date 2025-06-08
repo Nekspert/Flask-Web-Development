@@ -1,5 +1,6 @@
 from flask import render_template, redirect, url_for, request, current_app, flash, abort, make_response, Response
 from flask_login import current_user, login_required
+from flask_sqlalchemy.record_queries import get_recorded_queries
 
 from . import bp
 from .forms import PostForm, CommentForm
@@ -146,3 +147,14 @@ def server_shutdown():
         abort(500)
     shutdown()
     return 'Shutting down...'
+
+
+@bp.after_app_request
+def after_request(response):
+    for query in get_recorded_queries():
+        if query.duration >= current_app.config['FLASKY_SLOW_DB_QUERY_TIME']:
+            current_app.logger.warning(
+                'Slow query: %s\nParameters: %s\nDuration: %fs\nContext: %s\n' %
+                (query.statement, query.parameters, query.duration,
+                 query.context))
+    return response
