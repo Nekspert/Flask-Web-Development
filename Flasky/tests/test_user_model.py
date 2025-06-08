@@ -20,26 +20,26 @@ class UserModelTestCase(unittest.TestCase):
         self.app_context.pop()
 
     def test_password_setter(self):
-        u = User(password='cat')
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
         self.assertTrue(u.password_hash is not None)
 
     def test_no_password_getter(self):
-        u = User(password='cat')
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
         with self.assertRaises(AttributeError):
             u.password
 
     def test_password_verification(self):
-        u = User(password='cat')
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
         self.assertTrue(u.verify_password('cat'))
         self.assertFalse(u.verify_password('dog'))
 
     def test_password_salts_random(self):
-        u = User(password='cat')
-        u2 = User(password='cat')
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
+        u2 = User(email='tim@22.gmail.com', username='pass2', password='cat')
         self.assertTrue(u.password_hash != u2.password_hash)
 
     def test_confirmed(self):
-        u = User()
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
         self.assertFalse(u.confirmed)
 
     def test_confirm_verification_expired(self):
@@ -52,7 +52,7 @@ class UserModelTestCase(unittest.TestCase):
         self.assertFalse(u.confirm(token, expiration=0))
 
     def test_confirm_verification(self):
-        u = User()
+        u = User(email='tim@12.gmail.com', username='pass', password='cat')
         self.assertFalse(u.confirmed)
         token2 = u.generate_confirmation_token()
         self.assertTrue(u.confirm(token2, expiration=0))
@@ -112,7 +112,7 @@ class UserModelTestCase(unittest.TestCase):
 
     def test_moderator_role(self):
         r = Role.query.filter_by(name='Moderator').first()
-        u = User(email='john@example.com', password='cat', role=r)
+        u = User(email='john@example.com', username='1', password='cat', role=r)
         self.assertTrue(u.can(Permissions.FOLLOW.value))
         self.assertTrue(u.can(Permissions.COMMENT.value))
         self.assertTrue(u.can(Permissions.WRITE.value))
@@ -121,7 +121,7 @@ class UserModelTestCase(unittest.TestCase):
 
     def test_administrator_role(self):
         r = Role.query.filter_by(name='Administrator').first()
-        u = User(email='john@example.com', password='cat', role=r)
+        u = User(email='john@example.com', username='1', password='cat', role=r)
         self.assertTrue(u.can(Permissions.FOLLOW.value))
         self.assertTrue(u.can(Permissions.COMMENT.value))
         self.assertTrue(u.can(Permissions.WRITE.value))

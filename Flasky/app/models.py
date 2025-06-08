@@ -387,7 +387,7 @@ class Comment(db.Model):
     html_body: so.Mapped[str] = so.mapped_column(sa.Text)
     timestamp: so.Mapped[datetime] = so.mapped_column(DateTime(timezone=True),
                                                       default=lambda: datetime.now(timezone.utc))
-    disabled: so.Mapped[bool] = so.mapped_column(sa.Boolean)
+    disabled: so.Mapped[bool] = so.mapped_column(default=False)
     author_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id))
     post_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Post.id))
 
