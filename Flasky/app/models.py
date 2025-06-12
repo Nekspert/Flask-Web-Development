@@ -88,7 +88,7 @@ class User(UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, index=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, index=True)
-    password_hash: so.Mapped[str] = so.mapped_column(sa.String(128))
+    password_hash: so.Mapped[str] = so.mapped_column(sa.Text())
     confirmed: so.Mapped[bool] = so.mapped_column(default=False)
 
     name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64))

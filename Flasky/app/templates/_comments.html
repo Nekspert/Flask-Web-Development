@@ -15,8 +15,8 @@
                 <p></p><i>This comment has been disabled by a moderator.</i></p>
                 {% endif %}
                 {% if moderate or not comment.disabled %}
-                {% if comment.body_html %}
-                {{ comment.body_html | safe }}
+                {% if comment.html_body %}
+                {{ comment.html_body | safe }}
                 {% else %}
                 {{ comment.body }}
                 {% endif %}
